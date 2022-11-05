@@ -4,8 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AmmoType.h"
 #include "ShooterCharacter.generated.h"
 
+
+
+UENUM(BlueprintType)
+
+enum class ECombatState : uint8
+{
+	ECS_Unoccupied UMETA(DisplayName = "Unoccupied"),
+	ECS_FireTimerInProgress UMETA(DisplayName = "FireTimeInProgress"),
+	ECS_Reloading UMETA(DisplayName = "Reloading"),
+	ECS_Max UMETA(DisplayName = "DefaultMax")
+};
 
 UCLASS()
 class SHOOTER_API AShooterCharacter : public ACharacter
@@ -70,6 +82,27 @@ protected:
 	void OnSelectButtonReleased();
 
 	
+	void InitializeAmmoMap();
+
+	bool WeaponHasAmmo();
+
+	void PlayFireSound();
+
+	void SendBullet();
+
+	void PlayGunFireMontage();
+
+	void ReloadButtonPressed();
+
+	void ReloadWeapon();
+
+	bool CarryingAmmo();
+
+	UFUNCTION(BlueprintCallable)
+		void GrabClip();
+
+	UFUNCTION(BluePrintCallable)
+		void ReleaseClip();
 
 	
 
@@ -206,6 +239,30 @@ private :
 
 	UPROPERTY(EditDefaultsOnly, BluePrintReadOnly, Category = "ItemProperties", meta = (AllowPrivateAccess = true))
 	class UCurveFloat* ItemZCurve;
+
+	UPROPERTY(VisibleAnyWhere, BluePrintReadOnly, Category = "ItemProperties", meta = (AllowPrivateAccess = true))
+	TMap<EAmmoType, int32> AmmoMap;
+
+	UPROPERTY(EditAnyWhere, BluePrintReadOnly, Category = "ItemProperties", meta = (AllowPrivateAccess = true))
+	int32 Starting9mmAmmo;
+
+	UPROPERTY(EditAnyWhere, BluePrintReadOnly, Category = "ItemProperties", meta = (AllowPrivateAccess = true))
+	int32 StartingARAmmo;
+
+	UPROPERTY(VisibleAnyWhere, BluePrintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
+	ECombatState CombatState;
+
+	UPROPERTY(EditAnywhere, BluePrintReadWrite, Category = Combat, meta = (AllowPrivateAccess = true))
+	UAnimMontage* ReloadMontage;
+
+	UFUNCTION(BluePrintCallable)
+	void FinishReloading();
+
+	UPROPERTY(VisibleAnyWhere, BluePrintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
+	FTransform ClipTransform;
+
+	UPROPERTY(VisibleAnyWhere, BluePrintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
+	USceneComponent* HandSceneComponent;
 
 public :
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }

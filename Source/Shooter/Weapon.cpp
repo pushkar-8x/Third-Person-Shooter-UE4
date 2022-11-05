@@ -2,13 +2,21 @@
 
 
 #include "Weapon.h"
+#include "Engine/SkeletalMeshSocket.h"
+
 
 AWeapon::AWeapon() :
-	ThrowWeaponTime(0.7f), bFalling(false)
+	ThrowWeaponTime(0.7f), bFalling(false), AmmoCount(30), MagazineCapacity(30),
+	WeaponType(EWeaponType::EWT_SubmachineGun), AmmoType(EAmmoType::ET_9MM),
+	ReloadMontageName(FName(TEXT("Reload SMG"))), ClipBoneName(TEXT("smg_clip" ))
 
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	
+	
 }
+
 
 void AWeapon::Tick(float DeltaTime)
 {
@@ -44,6 +52,26 @@ void AWeapon::ThrowWeapon()
 
 
 }
+
+void AWeapon::DecrementAmmo()
+{
+	if (AmmoCount - 1 < 0)
+	{
+		AmmoCount = 0;
+	}
+	else
+	{
+		--AmmoCount;
+	}
+}
+
+void AWeapon::ReloadAmmo(int32 Amount)
+{
+	checkf(AmmoCount + Amount <= MagazineCapacity, TEXT("Attempted to reload with more than mag capacity"));
+	AmmoCount += Amount;
+}
+
+
 
 void AWeapon::StopFalling()
 {
