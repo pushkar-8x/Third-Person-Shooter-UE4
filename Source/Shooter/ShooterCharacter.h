@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Item.h"
 #include "AmmoType.h"
 #include "ShooterCharacter.generated.h"
 
@@ -32,6 +33,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void Jump() override;
+
 	void MoveForward(float value);
 	void MoveRight(float value);
 
@@ -47,6 +50,10 @@ protected:
 
 	void OnAimButtonPressed();
 	void OnAimButtonReleased();
+
+	void Aim();
+
+	void StopAiming();
 
 	void CameraInterpZoom(float DeltaTime);
 
@@ -98,11 +105,19 @@ protected:
 
 	bool CarryingAmmo();
 
+	void CrouchButtonPressed();
+
+	void InterpCapsuleHalfHeight(float DeltaTime);
+
+	void PickupAmmo(class AAmmo* Ammo);
+
 	UFUNCTION(BlueprintCallable)
 		void GrabClip();
 
 	UFUNCTION(BluePrintCallable)
 		void ReleaseClip();
+
+
 
 	
 
@@ -122,6 +137,31 @@ private :
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = true))
 	class UCameraComponent* FollowCamera;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = true))
+		float BaseMovementSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = true))
+		float CrouchMovementSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = true))
+		float AimMovementSpeed;
+
+	bool bAimButtonPressed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = true))
+		float BaseFriction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = true))
+		float CrouchFriction;
+
+
+	float CapsuleHalfHeight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = true))
+	float StandingCapsuleHalfHeight;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = true))
+		float CrouchingCapsuleHalfHeight;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = true))
 	float BaseTurnRate;
@@ -180,6 +220,9 @@ private :
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = true))
 	bool bIsAiming;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = true))
+	bool bCrouching;
 
 	float CameraDefaultFOV;
 	float CameraZoomedFOV;
@@ -279,5 +322,9 @@ public :
 	void UpdateOverlappedItemCount(int8 Amount);
 
 	void GetPickupItem(AItem* Item);
+
+	FORCEINLINE ECombatState GetCombatState() const { return CombatState; }
+
+	FORCEINLINE bool GetCrouching() const { return bCrouching; }
 
 };

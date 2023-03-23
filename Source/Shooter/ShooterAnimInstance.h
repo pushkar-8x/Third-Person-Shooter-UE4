@@ -9,6 +9,18 @@
 /**
  * 
  */
+
+UENUM(BluePrintType)
+
+enum class EOffsetState:uint8
+{
+	EOS_Reloading UMETA(DisplayName = "Reloading"),
+	EOS_Aiming UMETA(DisplayName = "Aiming"),
+	EOS_Hip UMETA(DisplayName = "Hip"),
+	EOS_InAir UMETA(DisplayName = "InAir"),
+	EOS_MAX UMETA(DisplayName = "DefaultMax")
+};
+
 UCLASS()
 class SHOOTER_API UShooterAnimInstance : public UAnimInstance
 {
@@ -16,9 +28,16 @@ class SHOOTER_API UShooterAnimInstance : public UAnimInstance
 		
 
 public:
+	UShooterAnimInstance();
+
 	UFUNCTION(BlueprintCallable)
 	void UpdateAnimationProperties(float DeltaTime);
 	virtual void NativeInitializeAnimation() override;
+
+protected:
+
+	void TurnInPlace();
+	void Lean(float DeltaTime);
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = true))
@@ -41,4 +60,44 @@ private:
 
 	UPROPERTY(EditAnywhere, BluePrintReadWrite, Category = Movement, meta = (AllowPrivateAccess = true))
 	float LastMovementOffsetYaw;
+
+	float TIPCharacterYaw;
+
+	float TIPCharacterYawlastFrame;
+
+
+	FRotator CharacterRotation;
+
+	FRotator CharacterRotationLastFrame;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = true))
+	float YawDelta;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = true))
+	bool bCrouching;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = true))
+	float RootYawOffset;
+
+	float RotationCurve;
+
+	float RotationCurveLastFrame;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = true))
+	float Pitch;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = true))
+	bool bReloading;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
+	float RecoilWeight;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = true))
+	bool bTurningInPlace;
+
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Turn In Place", meta = (AllowPrivateAccess = true))
+	EOffsetState OffsetState;
+
+
 };

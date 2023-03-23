@@ -13,13 +13,18 @@
 #include "Components/WidgetComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Item.h"
 #include "Weapon.h"
+#include "Ammo.h"
 
 
 // Sets default values
 AShooterCharacter::AShooterCharacter() :
 
+	BaseMovementSpeed(650.f),CrouchMovementSpeed(300.f),AimMovementSpeed(300.f), bAimButtonPressed(false),
+	StandingCapsuleHalfHeight(88.f) ,CrouchingCapsuleHalfHeight(44.f),
+	BaseFriction(2.f),CrouchFriction(100.f),
 	BaseTurnRate(45.0f), BaseLookUpRate(45.f), bIsAiming(false), CameraDefaultFOV(0.f), CameraZoomedFOV(35.f),
 	CameraCurrentFOV(0.f), ZoomInterpSpeed(20.f),
 	HipTurnRate(90.f), HipLookUpRate(90.f), AimingTurnRate(20.f), AimingLookUpRate(20.f),
@@ -80,9 +85,28 @@ void AShooterCharacter::BeginPlay()
 	}
 
 	EquipWeapon(SpawnDefaultWeapon());
+	EquippedWeapon->DisableCustomDepth();
+	EquippedWeapon->DisableGlowMaterial();
 	
 	InitializeAmmoMap();
+	GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
 	
+}
+
+void AShooterCharacter::Jump()
+{
+	if (bCrouching)
+	{
+		bCrouching = false;
+		GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
+		GetCharacterMovement()->GroundFriction = BaseFriction;
+	}
+		
+	else
+	{
+		ACharacter::Jump();
+	}
+
 }
 
 // Called every frame
@@ -98,7 +122,7 @@ void AShooterCharacter::Tick(float DeltaTime)
 
 	TraceForItems();
 
-
+	InterpCapsuleHalfHeight(DeltaTime);
 
 }
 
@@ -220,14 +244,37 @@ bool AShooterCharacter::GetBeamEndLocation(const FVector& MuzzleSocketLocation, 
 
 void AShooterCharacter::OnAimButtonPressed()
 {
-	bIsAiming = true;
+	bAimButtonPressed = true;
+
+	if (CombatState != ECombatState::ECS_Reloading)
+	{
+		Aim();
+	}
 	
 }
 
 void AShooterCharacter::OnAimButtonReleased()
 {
-	bIsAiming = false;
 	
+	bAimButtonPressed = false;
+	StopAiming();
+
+}
+
+void AShooterCharacter::Aim()
+{
+	bIsAiming = true;
+	GetCharacterMovement()->MaxWalkSpeed = AimMovementSpeed;
+}
+
+void AShooterCharacter::StopAiming()
+{
+	bIsAiming = false;
+
+	if (!bCrouching)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
+	}
 }
 
 void AShooterCharacter::CameraInterpZoom(float DeltaTime)
@@ -371,7 +418,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAxis("Turn", this, &AShooterCharacter::Turn);
 	PlayerInputComponent->BindAxis("LookUp", this, &AShooterCharacter::LookUp);
 
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	PlayerInputComponent->BindAction("FireWeapon", IE_Pressed, this, &AShooterCharacter::FireButtonPressed);
@@ -384,6 +431,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	PlayerInputComponent->BindAction("SelectButton", IE_Released, this, &AShooterCharacter::OnSelectButtonReleased);
 
 	PlayerInputComponent->BindAction("ReloadButton", IE_Released, this, &AShooterCharacter::ReloadButtonPressed);
+	PlayerInputComponent->BindAction("Crouch", IE_Released, this, &AShooterCharacter::CrouchButtonPressed);
 	
 
 
@@ -392,7 +440,11 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 void AShooterCharacter::FinishReloading()
 {
 	CombatState = ECombatState::ECS_Unoccupied;
+
+
 	if (EquippedWeapon == nullptr) return;
+
+	if (bAimButtonPressed) Aim();
 
 	const auto AmmoType{ EquippedWeapon->GetAmmoType() };
 
@@ -495,6 +547,7 @@ void AShooterCharacter::TraceForItems()
 			{
 
 				TraceHitItem->GetPickupWidget()->SetVisibility(true);
+				TraceHitItem->EnableCustomDepth();
 			}
 
 			if (TraceHitItemLastFrame)
@@ -502,6 +555,7 @@ void AShooterCharacter::TraceForItems()
 				if (TraceHitItem != TraceHitItemLastFrame)
 				{
 					TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+					TraceHitItemLastFrame->DisableCustomDepth();
 				}
 			}
 
@@ -512,6 +566,7 @@ void AShooterCharacter::TraceForItems()
 	else if(TraceHitItemLastFrame)
 	{
 		TraceHitItemLastFrame->GetPickupWidget()->SetVisibility(false);
+		TraceHitItemLastFrame->DisableCustomDepth();
 	}
 }
 
@@ -569,10 +624,7 @@ void AShooterCharacter::OnSelectButtonPressed()
 	{
 		TraceHitItem->StartItemCurve(this);
 
-		if (TraceHitItem->GetPickupSound())
-		{
-			UGameplayStatics::PlaySound2D(this, TraceHitItem->GetPickupSound());
-		}
+		
 	}
 }
 
@@ -654,8 +706,13 @@ void AShooterCharacter::ReloadWeapon()
 	if (CombatState != ECombatState::ECS_Unoccupied) return;
 	if (EquippedWeapon == nullptr) return;
 
-	if (CarryingAmmo())
-	{
+	if (CarryingAmmo() && !EquippedWeapon->ClipIsFull())
+	{	
+		if (bIsAiming)
+		{
+			StopAiming();
+		}
+
 		CombatState = ECombatState::ECS_Reloading;
 
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -679,6 +736,76 @@ bool AShooterCharacter::CarryingAmmo()
 		return AmmoMap[AmmoType] > 0;
 	}
 	return false;
+}
+
+void AShooterCharacter::CrouchButtonPressed()
+{
+	if (GetCharacterMovement()->IsFalling()) return;
+
+	bCrouching = !bCrouching;
+
+	if (bCrouching)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = CrouchMovementSpeed;
+		GetCharacterMovement()->GroundFriction = CrouchFriction;
+	}
+
+	else
+	{
+		GetCharacterMovement()->MaxWalkSpeed = BaseMovementSpeed;
+		GetCharacterMovement()->GroundFriction = BaseFriction;
+	}
+		
+
+}
+
+void AShooterCharacter::InterpCapsuleHalfHeight(float DeltaTime)
+{
+	float TargetCapsuleHalfHeight{};
+
+	if (bCrouching)
+	{
+		TargetCapsuleHalfHeight = CrouchingCapsuleHalfHeight;
+	}
+	else
+	{
+		TargetCapsuleHalfHeight = StandingCapsuleHalfHeight;
+	}
+
+	const float InterpHalfHeight{
+		FMath::FInterpTo(GetCapsuleComponent()->GetScaledCapsuleHalfHeight()
+		, TargetCapsuleHalfHeight , DeltaTime , 20.f) };
+
+	
+
+	const float DeltaHalfHeight{ InterpHalfHeight - GetCapsuleComponent()->GetScaledCapsuleHalfHeight() };
+
+	const FVector Offset{ 0.f,0.f,-DeltaHalfHeight };
+
+	GetMesh()->AddLocalOffset(Offset);
+
+	GetCapsuleComponent()->SetCapsuleHalfHeight(InterpHalfHeight);
+
+}
+
+void AShooterCharacter::PickupAmmo(AAmmo* Ammo)
+{
+	if (AmmoMap.Find(Ammo->GetAmmoType()))
+	{
+		int32 AmmoCount{ AmmoMap[Ammo->GetAmmoType()] };
+		AmmoCount += Ammo->GetItemCount();
+		AmmoMap[Ammo->GetAmmoType()] = AmmoCount;
+	}
+
+	if (EquippedWeapon->GetAmmoType() == Ammo->GetAmmoType())
+	{
+		if (EquippedWeapon->GetAmmoCount() == 0)
+		{
+			ReloadWeapon();
+		}
+	}
+
+	Ammo->Destroy();
 }
 
 void AShooterCharacter::GrabClip()
@@ -725,6 +852,12 @@ void AShooterCharacter::GetPickupItem(AItem* Item)
 	if (weapon)
 	{
 		SwapWeapon(weapon);
+	}
+
+	auto Ammo = Cast<AAmmo>(Item);
+	if (Ammo)
+	{
+		PickupAmmo(Ammo);
 	}
 }
 

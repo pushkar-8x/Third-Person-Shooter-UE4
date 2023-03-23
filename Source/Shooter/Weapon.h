@@ -82,6 +82,8 @@ public:
 
 	FORCEINLINE FName GetClipBoneName() const { return ClipBoneName; }
 
+	bool ClipIsFull();
+
 	void SetMovingClip(bool Move)
 	{
 		bMovingClip = Move;

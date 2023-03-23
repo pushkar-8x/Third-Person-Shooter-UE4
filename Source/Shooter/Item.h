@@ -38,7 +38,9 @@ class SHOOTER_API AItem : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AItem();
-	
+	virtual void EnableCustomDepth();
+	virtual void DisableCustomDepth();
+	virtual void InitializeCustomDepth();
 
 protected:
 	// Called when the game starts or when spawned
@@ -55,18 +57,25 @@ protected:
 
 	void SetActiveStars();
 
-	void SetItemProperties(EItemState State);
+	virtual void SetItemProperties(EItemState State);
 
-	
+	virtual void OnConstruction(const FTransform& Transform);
 
 	void FinishInterping();
 
 	void ItemInterp(float DeltaTime);
 
+	void ResetPulseTimer();
+	void StartPulseTimer();
+
+	
+
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-	
+	void EnableGlowMaterial();
+	void DisableGlowMaterial();
 
 private :
 
@@ -128,6 +137,40 @@ private :
 	UPROPERTY(EditDefaultsOnly, BluePrintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
 	USoundCue* EquipSound;
 
+	UPROPERTY(VisibleAnywhere, BluePrintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+		int32 MaterialIndex;
+
+	UPROPERTY(VisibleAnywhere, BluePrintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+		UMaterialInstanceDynamic* DynamicMaterialInstance;
+
+	UPROPERTY(EditAnywhere, BluePrintReadWrite, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+		UMaterialInstance* MaterialInstance;
+
+	bool bCanChangeCustomDepth;
+
+
+	UPROPERTY(EditDefaultsOnly, BluePrintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+	class UCurveVector* PulseCurve;
+
+	FTimerHandle PulseTimer ;
+
+	UPROPERTY(EditDefaultsOnly, BluePrintReadOnly, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+		float PulseCurveTime;
+
+	UPROPERTY(VisibleAnywhere, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+		float GlowAmount;
+
+	UPROPERTY(VisibleAnywhere, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+		float FresnelExponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "Item Properties", meta = (AllowPrivateAccess = "true"))
+		float FresnelReflectFraction;
+
+	
+
+	void UpdatePulse();
+
+
 public :
 
 	
@@ -142,5 +185,7 @@ public :
 
 	FORCEINLINE USoundCue* GetPickupSound() const { return PickupSound; }
 	FORCEINLINE USoundCue* GetEquipSound() const { return EquipSound; }
+
+	FORCEINLINE int32 GetItemCount() const { return ItemCount; }
 
 };
